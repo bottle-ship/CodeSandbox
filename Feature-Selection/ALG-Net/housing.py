@@ -1,130 +1,135 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import sklearn.model_selection
 import torch
+import torch.nn as nn
 from sklearn.preprocessing import StandardScaler
-import matplotlib.pyplot as plt
+from torch.utils.data import Dataset
 
 dtype = torch.float
 device = torch.device("cuda")
 
-N, D_in, H, D_out = 506, 26, 10, 1
-lam_factors = [0.01, 0.05, 0.1, 0.5, 1, 2]
-xi_factors = [0.01, 0.05, 0.1, 0.5, 1, 2]
 
-N_runs = 1
-N_splits = 10
-epoch = 500
-eta = 1e-2
+class BostonHousingDataset(Dataset):
+
+    def __init__(self, n_noise_feature: int = 13):
+        self.n_noise_feature = n_noise_feature
+
+        df = pd.read_csv("../housing.csv", sep="\\s+", header=None)
+        df.columns = [
+            "CRIM", "ZN", "INDUS", "CHAS", "NOX", "RM", "AGE", "DIS", "RAD", "TAX", "PTRATIO", "B", "LSTAT", "MEDV"
+        ]
+        df = df.astype(float)
+
+        x_scaler = StandardScaler()
+        x = df.drop(columns=["MEDV"]).values
+        x = x_scaler.fit_transform(x)
+        self.n_original_featrues = x.shape[1]
+        x_noise = np.random.randn(len(x), n_noise_feature)
+        self.x = np.concatenate([x, x_noise], axis=-1)
+
+        self.y = df.reindex(columns=["MEDV"]).values
+
+    def __len__(self) -> int:
+        return len(self.x)
+
+    def __getitem__(self, index):
+        return self.x[index, ...], self.y[index, ...]
 
 
-class Layer():
-    def __init__(self, IN, OUT, activation=None):
-        self.IN = IN
-        self.OUT = OUT
-        self.w = torch.randn(IN, OUT, device=device, dtype=dtype, requires_grad=True)
-        self.b = torch.randn(1, OUT, device=device, dtype=dtype, requires_grad=True)
-        self.activation = activation
+class Model(nn.Module):
+
+    def __init__(self, n_inputs: int, n_outputs: int, n_hidden_nodes: int = 10):
+        super(Model, self).__init__()
+
+        self.n_inputs = n_inputs
+        self.n_outputs = n_outputs
+        self.n_hidden_nodes = n_hidden_nodes
+
+        self.model = nn.Sequential(
+            nn.Linear(self.n_inputs, self.n_hidden_nodes, bias=True),
+            nn.Tanh(),
+            nn.Linear(self.n_hidden_nodes, self.n_hidden_nodes, bias=True),
+            nn.Tanh(),
+            nn.Linear(self.n_hidden_nodes, self.n_hidden_nodes, bias=True),
+            nn.Tanh(),
+            nn.Linear(self.n_hidden_nodes, self.n_outputs, bias=True)
+        )
 
     def forward(self, x):
-        if self.activation is None:
-            y = x.mm(self.w) + self.b
-        else:
-            y = self.activation(x.mm(self.w) + self.b)
-        return y
+        return self.model(x)
 
     def reset(self):
-        self.w.data = torch.randn(self.IN, self.OUT, device=device, dtype=dtype, requires_grad=False)
-        self.b.data = torch.randn(1, self.OUT, device=device, dtype=dtype, requires_grad=False)
+        for i in range(0, len(self.model)):
+            if hasattr(self.model[i], "reset_parameters"):
+                self.model[i].reset_parameters()
+
+    def get_weights(self, gamma: float = 2):
+        return torch.norm(self.model[0].weight, dim=0).pow(gamma).data
+
+    def proximal(self, lam: float, eta: float):
+        alpha = torch.clamp(torch.norm(self.model[0].weight, dim=0) - lam * eta, min=0)
+        v = torch.nn.functional.normalize(self.model[0].weight, dim=0) * alpha
+        self.model[0].weight.data = v
 
 
-def getweights(w, gamma=2):
-    weights = torch.norm(w, dim=1).pow(gamma).data
-    return weights
+def main():
+    N, D_in, H, D_out = 506, 26, 10, 1
+    lam_factors = [0.01, 0.05, 0.1, 0.5, 1, 2]
+    xi_factors = [0.01, 0.05, 0.1, 0.5, 1, 2]
 
+    epoch = 1000
+    eta = 1e-2
 
-def proximal(w, lam, eta):
-    tmp = torch.norm(w, dim=1) - lam * eta
-    alpha = torch.clamp(tmp, min=0)
-    v = torch.nn.functional.normalize(w, dim=1) * alpha[:, None]
-    w.data = v
+    tr_errors = np.zeros(len(lam_factors))
+    tst_errors = np.zeros(len(lam_factors))
+    res = np.zeros(4)
 
+    dataset = BostonHousingDataset(n_noise_feature=13)
 
-tr_errors = np.zeros(len(lam_factors))
-tst_errors = np.zeros(len(lam_factors))
-res = np.zeros((N_runs, 4))
-data1 = np.zeros((N_runs, 26))
-data2 = np.zeros((N_runs, 26))
+    x = torch.from_numpy(dataset.x).to(dtype=dtype, device=device)
+    y = torch.from_numpy(dataset.y).to(dtype=dtype, device=device)
 
-for k in np.arange(0, N_runs):
+    model = Model(n_inputs=D_in, n_outputs=D_out, n_hidden_nodes=H)
+    model.to(dtype=dtype, device=device)
+    optimizer = torch.optim.SGD(model.parameters(), lr=eta)
+    criterion = nn.MSELoss()
 
-    print(k, "... ", end="")
+    x_train, x_test, y_train, y_test = sklearn.model_selection.train_test_split(x, y, test_size=0.25)
 
-    df = pd.read_csv("../housing.csv", sep="\\s+", header=None)
-    df.columns = [
-        "CRIM", "ZN", "INDUS", "CHAS", "NOX", "RM", "AGE", "DIS", "RAD", "TAX", "PTRATIO", "B", "LSTAT", "MEDV"
-    ]
-    df = df.astype(float)
-    Xdat = df.drop(columns=["MEDV"]).values
-    ydat = df.reindex(columns=["MEDV"]).values
+    for r in np.arange(0, len(lam_factors)):
+        model.reset()
+        model.train()
 
-    scaler = StandardScaler()
-    Xdat = scaler.fit_transform(Xdat)
+        for t in range(epoch):
+            y_train_pred = model(x_train)
+            loss = criterion(y_train_pred, y_train)
 
-    X_true = torch.tensor(Xdat, device=device, dtype=dtype)
-    X_rand = torch.randn(N, 13, device=device, dtype=dtype)
+            # if t % 1000 == 0:
+            #     print(t, loss.item())
 
-    X = torch.cat((X_true, X_rand), 1)
-    y = torch.tensor(ydat, device=device, dtype=dtype).view(-1, 1)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            model.proximal(lam_factors[r], eta)
 
-    Layer1 = Layer(D_in, H, torch.tanh)
-    Layer2 = Layer(H, H, torch.tanh)
-    Layer3 = Layer(H, H, torch.tanh)
-    Layer4 = Layer(H, D_out)
-
-    optimizer = torch.optim.SGD([Layer1.w, Layer1.b, Layer2.w, Layer2.b, Layer3.w, Layer3.b, Layer4.w, Layer4.b],
-                                lr=eta)
-
-    for j in np.arange(0, N_splits):
-
-        X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(X, y, test_size=0.25)
-
-        for r in np.arange(0, len(lam_factors)):
-
-            Layer1.reset()
-            Layer2.reset()
-            Layer3.reset()
-            Layer4.reset()
-
-            for t in range(epoch):
-                y_train_pred = Layer4.forward(Layer3.forward(Layer2.forward(Layer1.forward(X_train))))
-                loss = (y_train_pred - y_train).pow(2).mean()
-
-                # if t % 1000 == 0:
-                #     print(t, loss.item())
-
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
-                proximal(Layer1.w, lam_factors[r], eta)
-
-            y_test_pred = Layer4.forward(Layer3.forward(Layer2.forward(Layer1.forward(X_test))))
-            tst_errors[r] += (y_test_pred - y_test).pow(2).mean()
-        print("j=", j)
+        model.eval()
+        with torch.no_grad():
+            y_test_pred = model(x_test)
+        tst_errors[r] += (y_test_pred - y_test).pow(2).mean()
 
     lam_final = lam_factors[np.argmin(tst_errors)]
-    print(tst_errors / N_splits, "(loss)")
+    print(tst_errors, "(loss)")
     print("Optimization now.")
 
-    Layer1.reset()
-    Layer2.reset()
-    Layer3.reset()
-    Layer4.reset()
+    model.reset()
+    model.train()
 
     for t in range(epoch):
 
-        y_pred = Layer4.forward(Layer3.forward(Layer2.forward(Layer1.forward(X))))
-        loss = (y_pred - y).pow(2).mean()
+        y_pred = model(x)
+        loss = criterion(y_pred, y)
 
         if t % 1000 == 0:
             print(t, loss.item())
@@ -132,73 +137,66 @@ for k in np.arange(0, N_runs):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        proximal(Layer1.w, lam_final, eta)
+        model.proximal(lam_final, eta)
 
     # Adaptive
-    weights = getweights(Layer1.w)
+    weights = model.get_weights(gamma=2)
     norm = 1 / weights
     I = np.arange(0, D_in)
-    a = torch.norm(Layer1.w, dim=1)
+    a = torch.norm(model.model[0].weight, dim=0)
 
     I = np.arange(0, 13)
     J = np.arange(13, 26)
-    a = torch.norm(Layer1.w, dim=1)
+    a = torch.norm(model.model[0].weight, dim=0)
 
-    data1[k, :] = a.detach().cpu().numpy()
+    data1 = a.detach().cpu().numpy()
 
-    res[k, 0] = sum(a[I] > 0)
-    res[k, 1] = sum(a[J] > 0)
+    res[0] = sum(a[I] > 0)
+    res[1] = sum(a[J] > 0)
 
-    temp1 = torch.norm(Layer1.w, dim=1)
+    temp1 = torch.norm(model.model[0].weight, dim=0)
     print("Sparsity original", temp1[0:13])
     print("Sparsity random Gaussian", temp1[13:26])
 
     tr_errors = np.zeros(len(xi_factors))
     tst_errors = np.zeros(len(xi_factors))
 
-    for j in np.arange(0, N_splits):
+    x_train, x_test, y_train, y_test = sklearn.model_selection.train_test_split(x, y, test_size=0.25)
 
-        X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(X, y, test_size=0.25)
+    for r in np.arange(0, len(xi_factors)):
+        model.reset()
+        model.train()
 
-        for r in np.arange(0, len(xi_factors)):
+        for t in range(epoch):
+            y_train_pred = model.forward(x_train)
+            loss = criterion(y_train_pred, y_train)
 
-            Layer1.reset()
-            Layer2.reset()
-            Layer3.reset()
-            Layer4.reset()
+            # if t % 1000 == 0:
+            #     print(t, loss.item())
 
-            for t in range(epoch):
-                y_train_pred = Layer4.forward(Layer3.forward(Layer2.forward(Layer1.forward(X_train))))
-                loss = (y_train_pred - y_train).pow(2).mean()
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            model.proximal(xi_factors[r] * norm, eta)
 
-                # if t % 1000 == 0:
-                #     print(t, loss.item())
+        model.eval()
+        with torch.no_grad():
+            y_test_pred = model.forward(x_test)
+        tst_errors[r] += (y_test_pred - y_test).pow(2).mean()
 
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
-                proximal(Layer1.w, xi_factors[r] * norm, eta)
-
-            y_test_pred = Layer4.forward(Layer3.forward(Layer2.forward(Layer1.forward(X_test))))
-            tst_errors[r] += (y_test_pred - y_test).pow(2).mean()
-
-        print("j=", j)
-
-    print(tst_errors[r] / N_splits, "(Test loss)")
+    print(tst_errors[r], "(Test loss)")
 
     xi_final = lam_factors[np.argmin(tst_errors)]
-    print(tst_errors / N_splits, "(loss)")
+    print(tst_errors, "(loss)")
     print("Optimization now.")
 
-    Layer1.reset()
-    Layer2.reset()
-    Layer3.reset()
-    Layer4.reset()
+    model.reset()
+    model.train()
 
     for t in range(epoch):
 
-        y_pred = Layer4.forward(Layer3.forward(Layer2.forward(Layer1.forward(X))))
-        loss = (y_pred - y).pow(2).mean()
+        y_pred = model.forward(x)
+        loss = criterion(y_pred, y)
 
         if t % 1000 == 0:
             print(t, loss.item())
@@ -206,18 +204,18 @@ for k in np.arange(0, N_runs):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        proximal(Layer1.w, xi_final * norm, eta)
+        model.proximal(xi_final * norm, eta)
 
     I = np.arange(0, 13)
     J = np.arange(13, 26)
-    a = torch.norm(Layer1.w, dim=1)
+    a = torch.norm(model.model[0].weight, dim=0)
 
-    res[k, 2] = sum(a[I] > 0)
-    res[k, 3] = sum(a[J] > 0)
+    res[2] = sum(a[I] > 0)
+    res[3] = sum(a[J] > 0)
 
-    data2[k, :] = a.detach().cpu().numpy()
+    data2 = a.detach().cpu().numpy()
 
-    temp2 = torch.norm(Layer1.w, dim=1)
+    temp2 = torch.norm(model.model[0].weight, dim=0)
     print("Sparsity original", temp2[0:13])
     print("Sparsity random Gaussian", temp2[13:26])
 
@@ -226,7 +224,10 @@ for k in np.arange(0, N_runs):
     plt.bar(np.arange(0, 26) + 0.1, temp2.detach().cpu().numpy())
     plt.show()
 
+    # np.savetxt('housing.csv', res, delimiter=",")
+    # np.savetxt('housing-data1.csv', data1, delimiter=",")
+    # np.savetxt('housing-data2.csv', data2, delimiter=",")
 
-# np.savetxt('housing.csv', res, delimiter=",")
-# np.savetxt('housing-data1.csv', data1, delimiter=",")
-# np.savetxt('housing-data2.csv', data2, delimiter=",")
+
+if __name__ == "__main__":
+    main()
