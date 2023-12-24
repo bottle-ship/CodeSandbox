@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 
+__all__ = ["ActivationFunction"]
+
 
 class ActivationFunction(nn.Module):
     r"""Activation Function Module Wrapper.

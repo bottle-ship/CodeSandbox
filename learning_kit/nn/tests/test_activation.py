@@ -1,7 +1,9 @@
+import os
+
 import pytest
 import torch
 
-from activation import ActivationFunction  # 여기서 'your_module'은 ActivationFunction 클래스가 정의된 모듈을 나타냅니다.
+from learning_kit.nn.activation import ActivationFunction
 
 
 def test_activation_function_valid():
@@ -27,3 +29,7 @@ def test_activation_function_sigmoid():
     output = activation_module(input_tensor)
     assert output.shape == input_tensor.shape
     assert torch.all(output >= 0.0) and torch.all(output <= 1.0)
+
+
+if __name__ == "__main__":
+    pytest.main(["-s", "-v", f"{os.path.abspath(__file__)}"])

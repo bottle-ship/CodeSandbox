@@ -1,6 +1,9 @@
+import os
+
+import pytest
 import torch
 
-from fc_block import FullyConnectedBlock  # 여기서 'your_module'은 FullyConnectedBlock 클래스가 정의된 모듈을 나타냅니다.
+from learning_kit.nn.fc_block import FullyConnectedBlock
 
 
 def test_fully_connected_block_no_activation():
@@ -50,3 +53,7 @@ def test_fully_connected_block_complex():
     input_tensor = torch.randn(32, 10)  # 배치 크기 32, 입력 특성 10
     output = block(input_tensor)
     assert output.shape == (32, 20)  # 예상된 출력 형태: (배치 크기 32, 출력 특성 20)
+
+
+if __name__ == "__main__":
+    pytest.main(["-s", "-v", f"{os.path.abspath(__file__)}"])

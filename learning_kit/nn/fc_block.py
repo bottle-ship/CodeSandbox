@@ -2,7 +2,12 @@ import typing as t
 
 import torch.nn as nn
 
-from .activation import ActivationFunction
+from learning_kit.nn.activation import ActivationFunction
+
+__all__ = [
+    "FullyConnectedBlock",
+    "MultiFullyConnectedBlock"
+]
 
 
 class FullyConnectedBlock(nn.Sequential):
