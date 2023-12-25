@@ -65,6 +65,6 @@ class CombineLoss(nn.Module):
             [self.loss_modules[i](yi_pred, yi_true) for i, (yi_pred, yi_true) in enumerate(zip(y_pred, y_true))],
             dim=-1
         )
-        loss = torch.mean(loss * self.weight)
+        loss = torch.mean(loss * self.weight.to(device=loss.device, dtype=loss.dtype))
 
         return loss
