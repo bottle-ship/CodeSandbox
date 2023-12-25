@@ -34,17 +34,21 @@ class TensorLikeDataset(data.TensorDataset):
     >>> import numpy as np
     >>> import torch
     >>> from learning_kit.data.tensor_like import TensorLikeDataset
-    >>> np.random.seed(0)
-    >>> x = np.random.rand(100, 5)
-    >>> y = np.random.randint(0, 2, size=(100,))
-    >>> dataset_numpy = TensorLikeDataset(x, y)
-    >>> print(dataset_numpy[0])
-    (tensor([0.5488, 0.7152, 0.6028, 0.5449, 0.4237], dtype=torch.float64), tensor(1, dtype=torch.int32))
-    >>> x_torch = torch.tensor(x)
-    >>> y_torch = torch.tensor(y)
-    >>> dataset_torch = TensorLikeDataset(x_torch, y_torch)
-    >>> print(dataset_numpy[0])
-    (tensor([0.5488, 0.7152, 0.6028, 0.5449, 0.4237], dtype=torch.float64), tensor(1, dtype=torch.int32))
+    >>> torch.manual_seed(0)
+    >>> torch.set_default_dtype(torch.float32)
+    >>> x = torch.randn(100, 5)
+    >>> y = torch.randint(0, 2, size=(100,))
+    >>> x_dataset_torch = TensorLikeDataset(x)
+    >>> print(x_dataset_torch[0])
+    tensor([-1.1258, -1.1524, -0.2506, -0.4339,  0.8487])
+    >>> xy_dataset_torch = TensorLikeDataset(x, y)
+    >>> print(xy_dataset_torch[0])
+    (tensor([-1.1258, -1.1524, -0.2506, -0.4339,  0.8487]), tensor(0))
+    >>> x_numpy = x.detach().numpy()
+    >>> y_numpy = y.detach().numpy()
+    >>> xy_dataset_numpy = TensorLikeDataset(x_numpy, y_numpy)
+    >>> print(xy_dataset_numpy[0])
+    (tensor([-1.1258, -1.1524, -0.2506, -0.4339,  0.8487]), tensor(0))
 
     """
 
@@ -52,3 +56,7 @@ class TensorLikeDataset(data.TensorDataset):
         super(TensorLikeDataset, self).__init__(
             *tuple([torch.tensor(tensor) if not torch.is_tensor(tensor) else tensor for tensor in tensors])
         )
+
+    def __getitem__(self, index):
+        tensors = tuple(tensor[index] for tensor in self.tensors)
+        return tensors[0] if len(self.tensors) == 1 else tensors
