@@ -65,21 +65,18 @@ class SingleModelTrainModule(pl.LightningModule):
             optimizer: t.Union[torch.optim.Optimizer, DeferredParamOptimizer]
     ):
         super(SingleModelTrainModule, self).__init__()
-        self.save_hyperparameters()
+        self.save_hyperparameters(ignore=["model", "loss_func"])
 
         self.model = model
         self.loss_func = loss_func
         self.optimizer = optimizer
 
-    def forward(
-            self,
-            x: t.Union[torch.Tensor, t.Tuple[torch.Tensor, ...]]
-    ) -> t.Union[torch.Tensor, t.Tuple[torch.Tensor, ...]]:
+    def forward(self, *x: torch.Tensor) -> t.Union[torch.Tensor, t.Tuple[torch.Tensor, ...]]:
         return self.model.forward(*x) if isinstance(x, (list, tuple)) else self.model.forward(x)
 
     def compute_loss(self, batch) -> torch.Tensor:
         x, y = batch
-        y_hat = self.forward(x)
+        y_hat = self.forward(*x) if isinstance(x, (list, tuple)) else self.forward(x)
         loss = self.loss_func(y, y_hat)
 
         return loss
@@ -96,7 +93,7 @@ class SingleModelTrainModule(pl.LightningModule):
 
     def predict_step(self, batch) -> t.Union[torch.Tensor, t.Tuple[torch.Tensor, ...]]:
         x, y = batch
-        y_hat = self.forward(x)
+        y_hat = self.forward(*x) if isinstance(x, (list, tuple)) else self.forward(x)
 
         return y_hat
 
