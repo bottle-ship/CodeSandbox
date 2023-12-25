@@ -52,3 +52,21 @@ class XYDataset(Dataset[t.Tuple[torch.Tensor, torch.Tensor]]):
 
     def __len__(self):
         return len(self.x)
+
+    @property
+    def example_input_array(self) -> t.Union[torch.Tensor, t.Tuple[torch.Tensor, ...]]:
+        r"""Returns the example input array.
+
+        Returns
+        -------
+        x_example : torch.Tensor or tuple of torch.Tensor
+            The example input array.
+
+        """
+        x_example = self.x[0]
+        if isinstance(x_example, (list, tuple)):
+            x_example = tuple([x.unsqueeze(0) for x in x_example])
+        else:
+            x_example = x_example.unsqueeze(0)
+
+        return x_example
