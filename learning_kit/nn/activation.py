@@ -30,10 +30,11 @@ class ActivationFunction(nn.Module):
 
     Examples
     --------
-    Instantiate an instance of ActivationFunction using ReLU activation:
-    >>> activation_module = ActivationFunction('ReLU')  # Instantiate using ReLU activation
-    >>> input_tensor = torch.randn(1, 10)  # Example input tensor
-    >>> output = activation_module(input_tensor)  # Applying ReLU activation to input tensor
+    >>> import torch
+    >>> from learning_kit.nn.activation import ActivationFunction
+    >>> activation_module = ActivationFunction('ReLU')
+    >>> input_tensor = torch.randn(1, 10)
+    >>> output = activation_module(input_tensor)
 
     """
 

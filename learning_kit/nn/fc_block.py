@@ -11,6 +11,61 @@ __all__ = [
 
 
 class FullyConnectedBlock(nn.Sequential):
+    r"""Creates a block for a fully connected neural network with customizable components.
+
+    Parameters
+    ----------
+    in_features : int
+        Number of input features.
+
+    out_features : int
+        Number of output features.
+
+    bias : bool, default=True
+        Whether the linear layer learns an additive bias.
+
+    activation : str or torch.nn.Module, optional, default="GELU"
+        Activation function to apply. If it's a string, it should be module name in `torch.nn.modules.activation`.
+
+    activation_kwargs : dict, optional
+        Dictionary of additional keyword arguments to pass to activation function.
+        This argument is effective only if ``activation`` is a string.
+
+    batch_norm : bool, default=False
+        Whether to apply batch normalization.
+
+    batch_norm_eps : float, default=1e-5
+        A value added to the denominator for numerical stability.
+        This argument is effective only if ``batch_norm`` is ``True``.
+
+    batch_norm_momentum : float, default=0.1
+        The value used for the running_mean and running_var computation.
+        Can be set to ``None`` for cumulative moving average (i.e. simple average).
+        This argument is effective only if ``batch_norm`` is ``True``.
+
+    batch_norm_affine : bool, default=True
+        Whether to have learnable affine parameters in the batch normalization layer.
+        This argument is effective only if ``batch_norm`` is ``True``.
+
+    batch_norm_track_running_stats : bool, default=True
+        Whether to track the running mean and variance.
+        This argument is effective only if ``batch_norm`` is ``True``.
+
+    dropout_probability : float, default=0.0
+        The probability for an element to be zeroed by dropout.
+        If `dropout_probability` is greater than 0, dropout is applied to the block.
+
+    dropout_inplace : bool, default=False
+        Whether to perform operation in-place in the dropout layer.
+
+    Examples
+    --------
+    >>> from learning_kit.nn.fc_block import FullyConnectedBlock
+    >>> block = FullyConnectedBlock(
+    >>>     in_features=128, out_features=64, activation="ReLU", batch_norm=True, dropout_probability=0.2
+    >>> )
+
+    """
 
     def __init__(
             self,
@@ -27,60 +82,6 @@ class FullyConnectedBlock(nn.Sequential):
             dropout_probability: float = 0.0,
             dropout_inplace: bool = False
     ):
-        r"""Creates a block for a fully connected neural network with customizable components.
-
-        Parameters
-        ----------
-        in_features : int
-            Number of input features.
-
-        out_features : int
-            Number of output features.
-
-        bias : bool, default=True
-            Whether the linear layer learns an additive bias.
-
-        activation : str or torch.nn.Module, optional, default="GELU"
-            Activation function to apply. If it's a string, it should be module name in `torch.nn.modules.activation`.
-
-        activation_kwargs : dict, optional
-            Dictionary of additional keyword arguments to pass to activation function.
-            This argument is effective only if ``activation`` is a string.
-
-        batch_norm : bool, default=False
-            Whether to apply batch normalization.
-
-        batch_norm_eps : float, default=1e-5
-            A value added to the denominator for numerical stability.
-            This argument is effective only if ``batch_norm`` is ``True``.
-
-        batch_norm_momentum : float, default=0.1
-            The value used for the running_mean and running_var computation.
-            Can be set to ``None`` for cumulative moving average (i.e. simple average).
-            This argument is effective only if ``batch_norm`` is ``True``.
-
-        batch_norm_affine : bool, default=True
-            Whether to have learnable affine parameters in the batch normalization layer.
-            This argument is effective only if ``batch_norm`` is ``True``.
-
-        batch_norm_track_running_stats : bool, default=True
-            Whether to track the running mean and variance.
-            This argument is effective only if ``batch_norm`` is ``True``.
-
-        dropout_probability : float, default=0.0
-            The probability for an element to be zeroed by dropout.
-            If `dropout_probability` is greater than 0, dropout is applied to the block.
-
-        dropout_inplace : bool, default=False
-            Whether to perform operation in-place in the dropout layer.
-
-        Examples
-        --------
-        >>> block = FullyConnectedBlock(
-        >>>     in_features=128, out_features=64, activation="ReLU", batch_norm=True, dropout_probability=0.2
-        >>> )
-
-        """
         super(FullyConnectedBlock, self).__init__()
 
         self.append(nn.Linear(in_features=in_features, out_features=out_features, bias=bias))
