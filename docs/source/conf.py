@@ -36,7 +36,6 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
     "numpydoc",
-    "add_toctree_functions",
     "sphinx_copybutton",
     "myst_parser"
 ]

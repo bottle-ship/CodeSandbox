@@ -1,0 +1,17 @@
+.. _api_reference:
+
+{%- macro automodule(modname, options) -%}
+.. automodule:: {{ modname }}
+{%- for option in options %}
+   :{{ option }}:
+{%- endfor %}
+{%- endmacro %}
+
+
+{{ header | heading }}
+
+.. autosummary::
+   :toctree: autosummary
+   :recursive:
+
+   learning_kit
