@@ -21,7 +21,7 @@ def train_test_resample_split(
         train_size: t.Optional[t.Union[int, float]] = None,
         stratify: t.Optional[np.ndarray] = None,
         random_state: t.Optional[t.Union[int, np.random.RandomState]] = None
-) -> t.List[Subset[T]]:
+) -> t.List[t.Iterable[Subset[T]]]:
     r"""Split datasets into resample train and test subsets.
 
     This function divides one or more datasets into resample train and test subsets for cross-validation.
@@ -48,9 +48,9 @@ def train_test_resample_split(
         Controls the shuffling applied to the data before applying the split.
         Pass an int for reproducible output across multiple function calls.
 
-    Yields
-    ------
-    cv_split : list of torch.utils.data.Subset
+    returns
+    -------
+    cv_split : list of iterable of torch.utils.data.Subset
         List containing tuples of train and test Subset pairs for each dataset split.
 
     Examples
@@ -58,18 +58,64 @@ def train_test_resample_split(
     >>> import torch
     >>> from learning_kit.cv_splitter.resample import train_test_resample_split
     >>> from learning_kit.data.tensor_like import TensorLikeDataset
-    >>> x1 = torch.randn(100, 5)
-    >>> x2 = torch.randn(100, 3)
-    >>> y = torch.randint(0, 2, size=(100,))
-    >>> x_dataset = TensorLikeDataset(x1, x2)
+    >>> x = torch.arange(12)
+    >>> x
+    tensor([ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11])
+    >>> y = torch.tensor([0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1])
+    >>> y
+    tensor([0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1])
+    >>> x_dataset = TensorLikeDataset(x)
     >>> y_dataset = TensorLikeDataset(y)
-    >>> cv_splits = train_test_resample_split(x_dataset, y_dataset, n_splits=3, train_size=0.9)
+    >>> cv_splits = train_test_resample_split(x_dataset, y_dataset, n_splits=3, train_size=0.5, random_state=0)
     >>> for i, cv_split in enumerate(cv_splits):
     ...    x_dataset_train, x_dataset_test, y_dataset_train, y_dataset_test = cv_split
-    ...    print(f"CV {i}")
-    CV 0
-    CV 1
-    CV 2
+    ...    print(f"CV {i}:")
+    ...    print(f"  x_dataset_train={x_dataset_train[...]}")
+    ...    print(f"  x_dataset_test={x_dataset_test[...]}")
+    ...    print(f"  y_dataset_train={y_dataset_train[...]}")
+    ...    print(f"  y_dataset_test={y_dataset_test[...]}")
+    CV 0:
+      x_dataset_train=tensor([ 5,  0,  3, 11,  3,  7])
+      x_dataset_test=tensor([ 1,  2,  4,  6,  8,  9, 10])
+      y_dataset_train=tensor([0, 0, 0, 1, 0, 1])
+      y_dataset_test=tensor([0, 0, 0, 1, 1, 1, 1])
+    CV 1:
+      x_dataset_train=tensor([ 5, 11,  8,  9, 11,  5])
+      x_dataset_test=tensor([ 0,  1,  2,  3,  4,  6,  7, 10])
+      y_dataset_train=tensor([0, 1, 1, 1, 1, 0])
+      y_dataset_test=tensor([0, 0, 0, 0, 0, 1, 1, 1])
+    CV 2:
+      x_dataset_train=tensor([ 8,  8,  6, 11,  2, 11])
+      x_dataset_test=tensor([ 0,  1,  3,  4,  5,  7,  9, 10])
+      y_dataset_train=tensor([1, 1, 1, 1, 0, 1])
+      y_dataset_test=tensor([0, 0, 0, 0, 0, 1, 1, 1])
+    >>> # Stratify resample split
+    >>> stratify = y.detach().numpy()  # noqa
+    >>> cv_splits = train_test_resample_split(
+    ...     x_dataset, y_dataset, n_splits=3, train_size=0.5, stratify=stratify, random_state=0
+    ... )
+    >>> for i, cv_split in enumerate(cv_splits):
+    ...    x_dataset_train, x_dataset_test, y_dataset_train, y_dataset_test = cv_split
+    ...    print(f"CV {i}:")
+    ...    print(f"  x_dataset_train={x_dataset_train[...]}")
+    ...    print(f"  x_dataset_test={x_dataset_test[...]}")
+    ...    print(f"  y_dataset_train={y_dataset_train[...]}")
+    ...    print(f"  y_dataset_test={y_dataset_test[...]}")
+    CV 0:
+      x_dataset_train=tensor([9, 4, 0, 9, 9, 5])
+      x_dataset_test=tensor([ 1,  2,  3,  6,  7,  8, 10, 11])
+      y_dataset_train=tensor([1, 0, 0, 1, 1, 0])
+      y_dataset_test=tensor([0, 0, 0, 1, 1, 1, 1, 1])
+    CV 1:
+      x_dataset_train=tensor([4, 6, 3, 7, 5, 9])
+      x_dataset_test=tensor([ 0,  1,  2,  8, 10, 11])
+      y_dataset_train=tensor([0, 1, 0, 1, 0, 1])
+      y_dataset_test=tensor([0, 0, 0, 1, 1, 1])
+    CV 2:
+      x_dataset_train=tensor([9, 8, 9, 5, 0, 0])
+      x_dataset_test=tensor([ 1,  2,  3,  4,  6,  7, 10, 11])
+      y_dataset_train=tensor([1, 1, 1, 0, 0, 0])
+      y_dataset_test=tensor([0, 0, 0, 0, 1, 1, 1, 1])
 
     """
     if len(datasets) == 0:
@@ -87,7 +133,8 @@ def train_test_resample_split(
         if isinstance(random_state, int):
             local_random_state = random_state + n
         elif isinstance(random_state, np.random.RandomState):
-            seed = random_state.get_state()[1][0] + n
+            seed = tuple(random_state.get_state())[1]
+            seed = seed + np.ones_like(seed) * n
             local_random_state = np.random.RandomState(seed=seed)
         else:
             local_random_state = None
@@ -99,10 +146,12 @@ def train_test_resample_split(
         )
         test_indices_list.append(np.delete(indices.copy(), np.unique(train_indices_list[-1])))
 
-    for train_indices, test_indices in zip(train_indices_list, test_indices_list):
-        yield list(
+    return [
+        list(
             chain.from_iterable(
                 (Subset(dataset, indices=train_indices), Subset(dataset, indices=test_indices))
                 for dataset in datasets
             )
         )
+        for train_indices, test_indices in zip(train_indices_list, test_indices_list)
+    ]
