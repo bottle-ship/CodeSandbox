@@ -60,23 +60,23 @@ def write_autosummary(module) -> str:
 
     module_name = members["__name__"]
 
+    supported_section_lines = ["=", "-", "*"]
     depth = len(module_name.split("."))
-    if depth <= 2:
-        section_line = "="
-    elif depth == 3:
-        section_line = "-"
-    else:
-        section_line = "*"
+    section_line = supported_section_lines[depth - 2]
+    section_lines = section_line * len(module_name)
 
-    section_lines = section_line * (len(module_name) + 7)
-
-    autosummary = f":mod:`{module_name}`\n{section_lines}\n\n"
-    autosummary += f".. automodule:: {module_name}\n    :no-members:\n    :no-inherited-members:\n\n"
+    autosummary = f"{module_name}\n{section_lines}\n"
+    autosummary += "\n"
+    autosummary += (
+        f".. automodule:: {module_name}\n    :no-members:\n    :no-inherited-members:\n"
+    )
+    autosummary += "\n"
 
     package_name = module_name.split(".")[0]
     sub_package_name = ".".join(module_name.split(".")[1:])
 
-    autosummary += f".. currentmodule:: {package_name}\n\n"
+    autosummary += f".. currentmodule:: {package_name}\n"
+    autosummary += "\n"
 
     class_names = list()
     func_names = list()
@@ -91,15 +91,17 @@ def write_autosummary(module) -> str:
             func_names.append(members[key].__qualname__)
 
     if len(class_names) > 0:
-        autosummary += f".. autosummary::\n    :toctree: generated/\n\n"
+        autosummary += f".. autosummary::\n    :toctree: generated/\n"
+        autosummary += "\n"
         for class_name in class_names:
-            autosummary += f"   {sub_package_name}.{class_name}\n"
+            autosummary += f"    {sub_package_name}.{class_name}\n"
         autosummary += "\n"
 
     if len(func_names) > 0:
-        autosummary += f".. autosummary::\n    :toctree: generated/\n\n"
+        autosummary += f".. autosummary::\n    :toctree: generated/\n"
+        autosummary += "\n"
         for func_name in func_names:
-            autosummary += f"   {sub_package_name}.{func_name}\n"
+            autosummary += f"    {sub_package_name}.{func_name}\n"
         autosummary += "\n"
 
     return autosummary
@@ -110,7 +112,7 @@ def generate_api_reference_documentation():
     section_lines = "=" * len(section_title)
     description = "This page contains the API reference for public objects and functions in learning-kit."
 
-    api_doc = ".._api_reference:\n\n"
+    api_doc = ".. _api_reference:\n\n"
     api_doc += f"{section_lines}\n{section_title}\n{section_lines}\n\n"
     api_doc += f"{description}\n\n"
 
