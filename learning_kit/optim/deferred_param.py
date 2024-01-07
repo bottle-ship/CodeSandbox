@@ -4,6 +4,8 @@ from inspect import signature
 import torch.nn as nn
 import torch.optim as optim
 
+__all__ = ["DeferredParamOptimizer"]
+
 
 class DeferredParamOptimizer(object):
     r"""DeferredParamOptimizer allows deferred configuration of PyTorch optimizers with specified parameters.

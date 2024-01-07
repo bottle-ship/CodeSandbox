@@ -3,29 +3,32 @@ import typing as t
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks.progress.tqdm_progress import (
     TQDMProgressBar as _TQDMProgressBar,
-    convert_inf
+    convert_inf,
 )
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 
+__all__ = ["TQDMProgressBar"]
+
 
 class TQDMProgressBar(_TQDMProgressBar):
-
     def __init__(
-            self,
-            refresh_rate: int = 1,
-            process_position: int = 0,
-            sanity_check_description: str = "Sanity Checking",
-            train_description: str = "Training",
-            validation_description: str = "Validation",
-            test_description: str = "Testing",
-            predict_description: str = "Predicting",
-            enable_sanity_progress_bar: bool = False,
-            enable_train_progress_bar: bool = True,
-            enable_val_progress_bar: bool = False,
-            enable_test_progress_bar: bool = False,
-            enable_predict_progress_bar: bool = True
+        self,
+        refresh_rate: int = 1,
+        process_position: int = 0,
+        sanity_check_description: str = "Sanity Checking",
+        train_description: str = "Training",
+        validation_description: str = "Validation",
+        test_description: str = "Testing",
+        predict_description: str = "Predicting",
+        enable_sanity_progress_bar: bool = False,
+        enable_train_progress_bar: bool = True,
+        enable_val_progress_bar: bool = False,
+        enable_test_progress_bar: bool = False,
+        enable_predict_progress_bar: bool = True,
     ):
-        super(TQDMProgressBar, self).__init__(refresh_rate=refresh_rate, process_position=process_position)
+        super(TQDMProgressBar, self).__init__(
+            refresh_rate=refresh_rate, process_position=process_position
+        )
 
         self._sanity_check_description = sanity_check_description
         self._train_description = train_description
@@ -121,17 +124,21 @@ class TQDMProgressBar(_TQDMProgressBar):
         pass
 
     def on_train_batch_end(
-            self,
-            trainer: "pl.Trainer",
-            pl_module: "pl.LightningModule",
-            outputs: STEP_OUTPUT,
-            batch: t.Any,
-            batch_idx: int
+        self,
+        trainer: "pl.Trainer",
+        pl_module: "pl.LightningModule",
+        outputs: STEP_OUTPUT,
+        batch: t.Any,
+        batch_idx: int,
     ) -> None:
         if self.is_enabled_train_progress_bar:
-            self.train_progress_bar.set_postfix(self.get_train_postfix(trainer, pl_module, batch_idx + 1))
+            self.train_progress_bar.set_postfix(
+                self.get_train_postfix(trainer, pl_module, batch_idx + 1)
+            )
 
-    def on_train_epoch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
+    def on_train_epoch_end(
+        self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
+    ) -> None:
         if self.is_enabled_train_progress_bar:
             n = trainer.current_epoch + 1
             if self._should_update(n, self.train_progress_bar.total):
@@ -140,24 +147,28 @@ class TQDMProgressBar(_TQDMProgressBar):
                     bar.n = n
                     bar.refresh()
                 self.train_progress_bar.set_postfix(
-                    self.get_train_postfix(trainer, pl_module, convert_inf(self.total_train_batches))
+                    self.get_train_postfix(
+                        trainer, pl_module, convert_inf(self.total_train_batches)
+                    )
                 )
 
     def on_train_end(self, *_: t.Any) -> None:
         if self.is_enabled_train_progress_bar:
             super(TQDMProgressBar, self).on_train_end(*_)
 
-    def on_validation_start(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
+    def on_validation_start(
+        self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
+    ) -> None:
         if self.is_enabled_val_progress_bar:
             super(TQDMProgressBar, self).on_validation_start(trainer, pl_module)
 
     def on_validation_batch_start(
-            self,
-            trainer: "pl.Trainer",
-            pl_module: "pl.LightningModule",
-            batch: t.Any,
-            batch_idx: int,
-            dataloader_idx: int = 0,
+        self,
+        trainer: "pl.Trainer",
+        pl_module: "pl.LightningModule",
+        batch: t.Any,
+        batch_idx: int,
+        dataloader_idx: int = 0,
     ) -> None:
         if self.is_enabled_val_progress_bar:
             super(TQDMProgressBar, self).on_validation_batch_start(
@@ -165,34 +176,38 @@ class TQDMProgressBar(_TQDMProgressBar):
             )
 
     def on_validation_batch_end(
-            self,
-            trainer: "pl.Trainer",
-            pl_module: "pl.LightningModule",
-            outputs: STEP_OUTPUT,
-            batch: t.Any,
-            batch_idx: int,
-            dataloader_idx: int = 0,
+        self,
+        trainer: "pl.Trainer",
+        pl_module: "pl.LightningModule",
+        outputs: STEP_OUTPUT,
+        batch: t.Any,
+        batch_idx: int,
+        dataloader_idx: int = 0,
     ) -> None:
         if self.is_enabled_val_progress_bar:
             super(TQDMProgressBar, self).on_validation_batch_end(
                 trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
             )
 
-    def on_validation_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
+    def on_validation_end(
+        self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
+    ) -> None:
         if self.is_enabled_val_progress_bar:
             super(TQDMProgressBar, self).on_validation_end(trainer, pl_module)
 
-    def on_test_start(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
+    def on_test_start(
+        self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
+    ) -> None:
         if self.is_enabled_test_progress_bar:
             super(TQDMProgressBar, self).on_test_start(trainer, pl_module)
 
     def on_test_batch_start(
-            self,
-            trainer: "pl.Trainer",
-            pl_module: "pl.LightningModule",
-            batch: t.Any,
-            batch_idx: int,
-            dataloader_idx: int = 0,
+        self,
+        trainer: "pl.Trainer",
+        pl_module: "pl.LightningModule",
+        batch: t.Any,
+        batch_idx: int,
+        dataloader_idx: int = 0,
     ) -> None:
         if self.is_enabled_test_progress_bar:
             super(TQDMProgressBar, self).on_test_batch_start(
@@ -200,34 +215,38 @@ class TQDMProgressBar(_TQDMProgressBar):
             )
 
     def on_test_batch_end(
-            self,
-            trainer: "pl.Trainer",
-            pl_module: "pl.LightningModule",
-            outputs: STEP_OUTPUT,
-            batch: t.Any,
-            batch_idx: int,
-            dataloader_idx: int = 0,
+        self,
+        trainer: "pl.Trainer",
+        pl_module: "pl.LightningModule",
+        outputs: STEP_OUTPUT,
+        batch: t.Any,
+        batch_idx: int,
+        dataloader_idx: int = 0,
     ) -> None:
         if self.is_enabled_test_progress_bar:
             super(TQDMProgressBar, self).on_test_batch_end(
                 trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
             )
 
-    def on_test_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
+    def on_test_end(
+        self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
+    ) -> None:
         if self.is_enabled_test_progress_bar:
             super(TQDMProgressBar, self).on_test_end(trainer, pl_module)
 
-    def on_predict_start(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
+    def on_predict_start(
+        self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
+    ) -> None:
         if self.is_enabled_predict_progress_bar:
             super(TQDMProgressBar, self).on_predict_start(trainer, pl_module)
 
     def on_predict_batch_start(
-            self,
-            trainer: "pl.Trainer",
-            pl_module: "pl.LightningModule",
-            batch: t.Any,
-            batch_idx: int,
-            dataloader_idx: int = 0,
+        self,
+        trainer: "pl.Trainer",
+        pl_module: "pl.LightningModule",
+        batch: t.Any,
+        batch_idx: int,
+        dataloader_idx: int = 0,
     ) -> None:
         if self.is_enabled_predict_progress_bar:
             super(TQDMProgressBar, self).on_predict_batch_start(
@@ -235,25 +254,30 @@ class TQDMProgressBar(_TQDMProgressBar):
             )
 
     def on_predict_batch_end(
-            self,
-            trainer: "pl.Trainer",
-            pl_module: "pl.LightningModule",
-            outputs: t.Any,
-            batch: t.Any,
-            batch_idx: int,
-            dataloader_idx: int = 0,
+        self,
+        trainer: "pl.Trainer",
+        pl_module: "pl.LightningModule",
+        outputs: t.Any,
+        batch: t.Any,
+        batch_idx: int,
+        dataloader_idx: int = 0,
     ) -> None:
         if self.is_enabled_predict_progress_bar:
             super(TQDMProgressBar, self).on_predict_batch_end(
                 trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
             )
 
-    def on_predict_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
+    def on_predict_end(
+        self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
+    ) -> None:
         if self.is_enabled_predict_progress_bar:
             super(TQDMProgressBar, self).on_predict_end(trainer, pl_module)
 
     def get_train_postfix(
-            self, trainer: "pl.Trainer", pl_module: "pl.LightningModule", step: t.Optional[int]
+        self,
+        trainer: "pl.Trainer",
+        pl_module: "pl.LightningModule",
+        step: t.Optional[int],
     ) -> t.Dict[str, t.Union[int, str, float, t.Dict[str, float]]]:
         metrics = self.get_metrics(trainer, pl_module)
         metrics.pop("v_num")
